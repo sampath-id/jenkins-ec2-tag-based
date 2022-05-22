@@ -1,0 +1,91 @@
+import boto3,os
+
+def startinstance(instanceids,client):
+    try:
+        response = client.start_instances(
+            InstanceIds=instanceids
+        ) # start ec2 sends instanceids as list
+    except Exception as e:
+        response=str(e)
+        print("Opps: Script exited with the error.\n"+str(e))
+        exit(1)
+    return response
+
+def stopinstance(instanceids,client):
+    try:
+        response = client.stop_instances(
+            InstanceIds=instanceids
+        ) #stop ec2 sends instanceids as list
+    except Exception as e:
+        response = str(e)
+        print("Opps: Script exited with the error.\n" + str(e))
+        exit(1)
+    return response
+
+def restartinstance(instanceids,client):
+    try:
+        response = client.reboot_instances(
+            InstanceIds=instanceids
+        )#restart ec2 sends instanceids as list
+    except Exception as e:
+        response = str(e)
+        print("Opps: Script exited with the error.\n" + str(e))
+        exit(1)
+    return response
+
+
+
+def getinstancebasedontag(tagnames,client):
+    filters=[]
+    temp={}
+    instance=[]
+    try:
+        tagnames=tagnames.split(":")
+        for tagname in tagnames:
+            tagname=tagname.split("=")
+            name=tagname[0]
+            value=tagname[1]
+            values=[]
+            values.append(value)
+            temp['Name'] ="tag:"+str(name)
+            temp['Values']=values
+            filters.append(temp)
+    except Exception as e:
+        print("Error in tag format.")
+        exit(1)
+    print("Tag Given:")
+    print(filters)
+    response = client.describe_instances(Filters=filters)
+    for instanceids in response['Reservations']:
+      instance.append(instanceids['Instances'][0]['InstanceId'])
+    return instance # returns instance ids that matches the tag
+
+
+
+# getting the parameter entered in jenkins
+tagnames=os.environ['tagname']
+action=os.environ['action']
+region=os.environ['region']
+# boto3 connect
+client = boto3.client('ec2',region_name=region)
+# get the instanceids based on tagname
+instanceids=getinstancebasedontag(tagnames,client)
+if len(instanceids) > 0:
+  print("Instances Matching the given pattern")
+  print(instanceids)
+  if action == 'start':
+      response=startinstance(instanceids,client) # call start func
+  elif action == 'stop':
+      response=stopinstance(instanceids,client) # call stop func
+  elif action == 'restart':
+      response=restartinstance(instanceids,client) #call restart func
+  else:
+      print("Error in reading action")
+else:
+  print("No Instance found with the matching pattern")
+try:
+	print(response) #prints the response
+except Exception as e:
+     print("Error in getting the data.")
+     exit(1)
+print("completed")
